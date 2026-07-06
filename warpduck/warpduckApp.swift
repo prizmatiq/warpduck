@@ -17,6 +17,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusTimer: Timer?
     private var animationTimer: Timer?
     private var animationFrame = 0
+    private var cachedSubscriptionInfo: [String] = []
     private let loadingFrames = ["vpn_loading_1", "vpn_loading_2", "vpn_loading_3", "vpn_loading_4", "vpn_loading_5", "vpn_loading_6", "vpn_loading_7", "vpn_loading_8"]
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -29,6 +30,74 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         updateStatus()
         statusTimer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: true) { [weak self] _ in
             self?.updateStatus()
+        }
+        refreshSubscriptionInfo()
+        showStartupAlert()
+    }
+
+    private func showStartupAlert() {
+        let w: CGFloat = 200
+        let h: CGFloat = 160
+        let panel = NSPanel(
+            contentRect: NSRect(x: 0, y: 0, width: w, height: h),
+            styleMask: [.nonactivatingPanel, .fullSizeContentView],
+            backing: .buffered,
+            defer: false
+        )
+        panel.isFloatingPanel = true
+        panel.level = .floating
+        panel.backgroundColor = .clear
+        panel.isOpaque = false
+        panel.hasShadow = false
+
+        let blur = NSVisualEffectView(frame: NSRect(x: 0, y: 0, width: w, height: h))
+        blur.blendingMode = .behindWindow
+        blur.material = .hudWindow
+        blur.state = .active
+        blur.wantsLayer = true
+        blur.layer?.cornerRadius = 20
+        blur.layer?.masksToBounds = true
+
+        let imgW: CGFloat = 130
+        let imgH: CGFloat = 94
+        let imageView = NSImageView(frame: NSRect(x: (w - imgW) / 2, y: 45, width: imgW, height: imgH))
+        imageView.image = NSImage(named: "launch_logo")
+        imageView.imageScaling = .scaleProportionallyUpOrDown
+        blur.addSubview(imageView)
+
+        let label = NSTextField(labelWithString: "lives in the menu bar")
+        label.textColor = NSColor(white: 1.0, alpha: 0.7)
+        label.font = NSFont.systemFont(ofSize: 14, weight: .regular)
+        label.alignment = .center
+        label.frame = NSRect(x: 0, y: 16, width: w, height: 20)
+        blur.addSubview(label)
+
+        panel.contentView?.addSubview(blur)
+
+        if let screen = NSScreen.main {
+            let x = (screen.frame.width - w) / 2
+            let y = (screen.frame.height - h) / 2
+            panel.setFrameOrigin(NSPoint(x: x, y: y))
+        }
+
+        panel.orderFront(nil)
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+            NSAnimationContext.runAnimationGroup { ctx in
+                ctx.duration = 0.4
+                panel.animator().alphaValue = 0
+            } completionHandler: {
+                panel.close()
+            }
+        }
+    }
+
+    private func refreshSubscriptionInfo() {
+        guard let url = getSubscriptionURL() else { return }
+        fetchSubscriptionInfo(url: url) { [weak self] info in
+            DispatchQueue.main.async {
+                self?.cachedSubscriptionInfo = info
+            }
         }
     }
 
@@ -120,49 +189,32 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func showMenu() {
-        if let url = getSubscriptionURL() {
-            fetchSubscriptionInfo(url: url) { info in
-                DispatchQueue.main.async {
-                    let menu = NSMenu()
-                    for (index, item) in info.enumerated() {
-                        let menuItem = NSMenuItem(title: "", action: nil, keyEquivalent: "")
-                        if index == 0 {
-                            let attrs: [NSAttributedString.Key: Any] = [
-                                .font: NSFont.boldSystemFont(ofSize: 13),
-                                .foregroundColor: NSColor.labelColor
-                            ]
-                            menuItem.attributedTitle = NSAttributedString(string: item, attributes: attrs)
-                        } else {
-                            let attrs: [NSAttributedString.Key: Any] = [
-                                .font: NSFont.systemFont(ofSize: 13),
-                                .foregroundColor: NSColor.labelColor
-                            ]
-                            menuItem.attributedTitle = NSAttributedString(string: item, attributes: attrs)
-                        }
-                        menu.addItem(menuItem)
-                    }
-                    menu.addItem(.separator())
-                    menu.addItem(withTitle: "Quit",
-                                 action: #selector(NSApplication.terminate(_:)),
-                                 keyEquivalent: "q")
-                    self.statusItem.menu = menu
-                    self.statusItem.button?.performClick(nil)
-                    self.statusItem.menu = nil
-                }
+        let menu = NSMenu()
+        let info = cachedSubscriptionInfo.isEmpty ? ["Loading..."] : cachedSubscriptionInfo
+        for (index, item) in info.enumerated() {
+            let menuItem = NSMenuItem(title: "", action: nil, keyEquivalent: "")
+            if index == 0 {
+                let attrs: [NSAttributedString.Key: Any] = [
+                    .font: NSFont.boldSystemFont(ofSize: 13),
+                    .foregroundColor: NSColor.labelColor
+                ]
+                menuItem.attributedTitle = NSAttributedString(string: item, attributes: attrs)
+            } else {
+                let attrs: [NSAttributedString.Key: Any] = [
+                    .font: NSFont.systemFont(ofSize: 13),
+                    .foregroundColor: NSColor.labelColor
+                ]
+                menuItem.attributedTitle = NSAttributedString(string: item, attributes: attrs)
             }
-        } else {
-            let menu = NSMenu()
-            menu.addItem(withTitle: "Subscription info unavailable",
-                         action: nil,
-                         keyEquivalent: "")
-            menu.addItem(.separator())
-            menu.addItem(withTitle: "Quit",
-                         action: #selector(NSApplication.terminate(_:)),
-                         keyEquivalent: "q")
-            statusItem.menu = menu
-            statusItem.button?.performClick(nil)
-            statusItem.menu = nil
+            menu.addItem(menuItem)
         }
+        menu.addItem(.separator())
+        menu.addItem(withTitle: "Quit",
+                     action: #selector(NSApplication.terminate(_:)),
+                     keyEquivalent: "q")
+        statusItem.menu = menu
+        statusItem.button?.performClick(nil)
+        statusItem.menu = nil
     }
 
     private func getSubscriptionURL() -> String? {
