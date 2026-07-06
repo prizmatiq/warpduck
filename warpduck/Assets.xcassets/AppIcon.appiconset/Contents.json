@@ -7,7 +7,7 @@
       "size" : "16x16"
     },
     {
-      "filename" : "icon_32 1.png",
+      "filename" : "icon_16@2x.png",
       "idiom" : "mac",
       "scale" : "2x",
       "size" : "16x16"
@@ -31,7 +31,7 @@
       "size" : "128x128"
     },
     {
-      "filename" : "icon_256 1.png",
+      "filename" : "icon_128@2x.png",
       "idiom" : "mac",
       "scale" : "2x",
       "size" : "128x128"
@@ -43,7 +43,7 @@
       "size" : "256x256"
     },
     {
-      "filename" : "icon_512 1.png",
+      "filename" : "icon_256@2x.png",
       "idiom" : "mac",
       "scale" : "2x",
       "size" : "256x256"
@@ -55,7 +55,7 @@
       "size" : "512x512"
     },
     {
-      "filename" : "WarpDuck Icon.png",
+      "filename" : "AppIcon.png",
       "idiom" : "mac",
       "scale" : "2x",
       "size" : "512x512"
